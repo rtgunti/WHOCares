@@ -1,0 +1,58 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+[//]: # (Code chunk here)
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Project Proposal
+
+### Team WHOCares  
+###### Karthik Kadajji, Praneet Chedella, Ravi Gunti, Rakesh Devalapally  
+
+--------------------------------------------------------------------------------------------------
+***
+
+### Motivation
+
+Global warming, a long-term rise in average temperatures on Earth's surface has been observed to rise since the 1950s. In 2013, the Intergovernmental Panel on Climate Change (IPCC) Fifth Assessment Report concluded, "It is extremely likely that human influence has been the dominant cause of the observed warming since the mid-20th century." Climate models available now also predict that the Earth's global annual average temperature will rise by at least 0.2&deg;C for the next 2 decades. However, by looking at the data available, there were some dips in the graph of observed average temperatures during few years. 
+  
+<img src="AnTemp.png" alt="Image"/> 
+  
+###### Source https://earthobservatory.nasa.gov/WorldOfChange/DecadalTemp
+  
+What could be causing this anamoly? Is it because of the decrease in CO2 emissions? If so, what is causing the decrease in CO2 emissions? And if it is not the case, what might be the case? We are interested in finding the reason behind this anamoly and therefore explore various datasets and find patterns which could explain this anamoly. 
+
+
+### Project Objectives
+* Among the collected datasets, What are the factors(human population, GDP, CO2 emission, natural disasters, terrorism, Earthquake) that contribute directly or indirectly to the variation in temperature?
+    + What is the kind of correlation(positive,Negative or No correlation) of the the factors with temperature?
+    + Degree of correlation of each factor with temperature and against each other.
+* Prediction of temperature using the factors. 
+* Explanation of the Anomaly with respect to the factors. 
+* Is it possible to see Butterfly effect(ignition of one factor, causing drastic change to other factor and hence effecting the current situation)?
+* Could it be possible that the number of humans on the face of the planet has any correlation with the temperature dip?
+
+### Name(s) of Datasets we will use
+* Global Temperatures dataset    
+* Global CO2 emission level dataset  
+* [GDP Growth Dataset](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD.ZG)
+* [Human population dataset](https://www.indexmundi.com/)  
+* [Natural disasters](https://www.emdat.be/)  
+* [Significant Earthquake Dataset](https://www.ngdc.noaa.gov/nndc/struts/form?t=101650&s=1&d=1)
+* [Global Terrorism Database](https://www.start.umd.edu/gtd/contact/)
+<!-- * [Ozone Dataset] (https://ozonewatch.gsfc.nasa.gov/statistics/ytd_data.txt) -->
+
+### Design Overview
+* Use of time-series analysis to predict temperature pattern.  
+* Check for Curvilinear correlation between various factors and global temperature
+* Various visualizations to support the observations made
+
+
+
+### Project Timeline
+<img src="ProjectSchedule.jpg" alt="Project Schedule"/>  

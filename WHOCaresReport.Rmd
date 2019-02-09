@@ -1,0 +1,272 @@
+---
+output: 
+  html_notebook: default
+  html_output:  default
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval=TRUE)
+library(magrittr)
+library(dplyr)
+library(ggplot2)
+library(corrplot)
+library(sqldf)
+library(tidyr)
+library(gridExtra)
+library(caret)
+library(Hmisc)
+library(ggthemes)
+library(broom)
+library(ridge)
+library(bootstrap)
+library(tseries)
+library(forecast)
+library(readr)
+# Add all the libraries here. One location for all the libraries
+```
+
+# $\color{blue}{\text{Identification of Predictors for Climate Change Effects}}$  
+
+
+### Team WHOCares  
+##### Karthik Kadajji, Praneeth Chedella, Ravi Theja Gunti, Rakesh Kumar Devalapally  
+
+--------------------------------------------------------------------------------------------------
+***
+
+### $\color{brown}{\text{Overview and Motivation}}$  
+
+Global warming, a long-term rise in average temperatures on Earth's surface has been observed to rise since the 1950s. In 2013, the Intergovernmental Panel on Climate Change (IPCC) Fifth Assessment Report concluded, "It is extremely likely that human influence has been the dominant cause of the observed warming since the mid-20th century." Climate models available now also predict that the Earth's global annual average temperature will rise by at least 0.2&deg;C for the next 2 decades. However, the data available shows that there are some dips in the graph of observed average temperatures during few years.  
+  
+<img src="image.png" alt="Image"/>  
+  
+###### Source https://earthobservatory.nasa.gov/WorldOfChange/DecadalTemp  
+  
+  
+What are the human factors causing this dip in temperature? We are interested in finding the reason behind the dips and therefore explore various datasets and find the correlation between human factors and the temperature. We check the possibibilty of building a model that considers these human factors and predicts the temperature.  
+
+### $\color{brown}{\text{Related Work}}$  
+
+The [report by IPCC panel](https://www.nytimes.com/2018/10/07/climate/ipcc-climate-report-2040.html) mentions that "human activities have caused warming of about 1.8 degrees since about the 1850s, the beginning of large-scale industrial coal burning". [NASA](https://climate.nasa.gov/vital-signs/carbon-dioxide/) mentions that carbondioxide is an important greenhouse gas. Hence we were interested to see how it could play a role in predicting the temperature. Kaggle competition on [Climate Change: Earth Surface Temperature Data](https://www.kaggle.com/berkeleyearth/climate-change-earth-surface-temperature-data) had huge number of kernels which tried to predict the temperature using timeseries analysis. We wanted to do it differently, using humanfactors since [WWF](https://www.worldwildlife.org/threats/effects-of-climate-change) mentions Humans cause climate change.
+  
+### $\color{brown}{\text{Datasets}}$  
+While there could be a lot of factors influencing the temperature, we shortlisted the following datasets after analysing a few datasets carefully:  
+* [Global Temperatures dataset](https://www.kaggle.com/berkeleyearth/climate-change-earth-surface-temperature-data)
+| Filename : [GlobalLandTemperaturesByCountry.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/GlobalLandTemperaturesByCountry.csv)  
+* [CO2 Emissions - Global Carbon Atlas](http://www.globalcarbonatlas.org/en/CO2-emissions)
+| Filename : [carbondataset.xlsx](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/carbondataset.xlsx)  
+* [GDP Growth Dataset](https://data.worldbank.org/indicator/NY.GDP.MKTP.KD.ZG)
+| Filename : [GDPAbsolute.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/GDPAbsolute.csv)  
+* [Human population dataset](http://api.worldbank.org/v2/en/indicator/SP.POP.TOTL?downloadformat=excel)
+| Filename : [PopulationDataset_Raw.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/PopulationDataset_Raw.csv)  
+* [Natural disasters](https://www.emdat.be/) 
+| Filename : [NaturalDisasters.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/NaturalDisasters.csv) 
+
+### $\color{brown}{\text{Initial Questions}}$  
+
+* Among the shortlisted factors, what are the factors(human population, GDP, CO2 emission, deaths) that contribute directly or indirectly to the change in temperature?
+    + Is there any correlation(positive,Negative or No correlation) between these various factors and the temperature?
+    + If so, what is the degree of correlation of each factor with temperature and against each other?
+* Prediction of temperature using the factors. 
+* Is it possible to see Butterfly effect(ignition of one factor, causing drastic change to other factor and hence effecting the current situation)?
+* Check if severe natural calamity affected the temperature in any way?
+
+### $\color{brown}{\text{PreProcessing}}$  
+The features such as Population, CO2 emissions, GDP, Total deaths due to disasters were not available at a single source. The data was collected from multiple sources and merged. The data for temperature was available from 1900 onwards at a monthly level. However GDP, CO2, Population data were available from 1960 onwards aggregated annually. Hence we considered the data from 1960 at annual level. A summary of the preprocessing is given in the below table. Detailed explanation follows after the table.
+
+Dataset | Data Available From | Data Frequency | # Data points | # Features | # Missing Values | # Values from 1960 | # Datapoints | # Missing Values | # NA Treatment 
+--------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------
+GDP Growth | 1960	| yearly | 12760 | 6 | 3257 | 1960 | 12760 | 3257 |  NA  
+Natural Disasters | 1914 | yearly | 13200 | 11 | 43510 | 1960 | 12392 | 39795 | 0 
+Human Population | 1960 | yearly | 15670 | 6 | 429 | 1960 | 15255 | 107 | impute
+Co2 Emissions | 1960 | yearly | 15312 | 6 | 3064 | 1960 | 15312 | 3064 | NA
+Temperature | 1900 | yearly | 26687 | 5 | 699 | 1960 | 12690 | 645 | NA
+--------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------|--------------  
+The above data is generated from following the steps in the  [script](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_Summary.R) for each dataset.  
+
+#### GDP Data Set  
+
+GDP Data for the last 50 years for every country is not available in the dataset. Some possible reasons we found out were:  
+* Few countries are formed less than 40 years ago  
+* Few countries went through war(s) for a period of time  
+We initially considered a GDP growth percentage dataset and had to discard it because all the other datasets are using absolute numbers rather than growth  percentages. In the dataset, countries whose GDP data is not available for over 20 years were dropped. All the phases of preprocessing, such as melting and transforming the data to make it compatible with the remaining data sets that are being used, identifying the countries with less than 20 years of GDP available and then filtering those countries from the available data sets, are done in R.   
+[Script: PPScript_GDPDS.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_GDPDS.R)  
+[Processed File: GDPDataSet.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/GDPDataSet.csv)  
+
+#### CO2 Emissions Data Set  
+The file structure for the GDP data set and the CO2 Emissions data set is the same. So, we applied the same method used for preprocessing the GDP dataset to process this data as well.  
+[Script: PPScript_Co2Emissions.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_Co2EmissionsDS.R)   
+[Processed File: Co2EmissionsDataSet.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/Co2EmissionsDataSet.csv)  
+
+#### Population Data Set  
+Irrelevant columns for this project, like 'Indicator name' and 'Indicator code', are dropped. The data is melted to have a row for each combination of country and year.  If missing values per country are less than 25% of the available data, the missing values have been imputed using linear regression model. Countries that have more than 25% of missing values are ignored for the final dataset.  
+[Script: PPScript_PopulationDS.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_PopulationDS.R)   
+[Processed File: PopulationDataset_Preprocessed.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/PopulationDataset_Preprocessed.csv)  
+
+#### Disaster Data Set  
+The dataset contains the number of deaths in a country by year and by disaster type. It also contains the number of people affected by the disaster and the total damage (in USD) caused by the disaster. However, the source of the dataset mentions that these are approximated numbers and not real numbers, we did not consider those two features. Deaths are grouped by country and by year, ignoring the disaster type. For the missing values, we considered them to be 0 (Logically, it made sense to assume that there were no deaths in that country caused by natural disasters or technical disasters).  
+[Script: PPScript_DisasterDS.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_DisasterDS.R)   
+[Processed File: Deaths_by_year_country.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/Deaths_by_year_country.csv)   
+
+#### Temperature Data Set  
+Since the source of the dataset was different for temperature collected for various country, there was discrepancy with the name of the countries and there was no country name provided. For Example, North Korea has the name Korea, Dem. People's Rep. in other datasets. Hence this has to be edited accordingly to get the appropriate key.  The dataset also contained continents and few countries which had to be identified and removed manually. Few countries/islands with insignificant population were also left out. The temperature recordings were available at monthly level for each country and hence we calculated the mean temperature for a year.  
+[Script: PPScript_TemperatureDS.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/PPScript_TemperatureDS.R)   
+[Processed File: TemperatureDatasetFinal.csv](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/TemperatureDatasetFinal.csv)   
+
+#### Combined DataSet  
+Our idea is to check whether there is any influence of GDP, CO2 Emissions and population on the temperature of the country. We merged the individual datasets to get the required final dataset. We shortlisted those countries for which the GDP in 2012 was more than a Trillion US dollards or whose population was over 100 million in 2012. We chose the year 2012 because this was the latest datapoint we have for the intersection of the datasets. After getting all the individual datasets to the required format, we merged them appropriately (using inner/outer/left joins as required) and obtained our final data frame.  
+[Script: MergeAndAnamoly.R](https://gitlab.com/who-cares/data-science-with-r/blob/master/Scripts/MergeAndAnamoly.R)  
+[File: MergedDataSet](https://gitlab.com/who-cares/data-science-with-r/blob/master/Data%20sets/MergedDataSet.csv)  
+
+
+### $\color{brown}{\text{Exploratory Data Analysis}}$  
+After obtaining the final dataset as mentioned above summary of the dataset is:
+
+```{r EDA_Summary}
+FNDDS <- read.csv("Data sets/PreProcessed/MergedDataSet.csv")
+summarydf <- select(FNDDS, "Year", "Country", "AverageTemperature", "Emissions", "GDP", "Population")
+summary(summarydf)
+```  
+
+We have a total of 19 countries in the year 2012 that have a population of over 100 million or GDP of over 1 trillion. When we plotted each of these individual factors against the absolute temperature, we have the following graphs:  
+  
+```{r EDA_preliminaryPlots, fig.align='center'}
+source('Scripts/RS_EDA_preliminaryPlots.R')
+```
+  
+  
+The graphs show that for similar values of GDP, population and CO2 emissions, the absolute average temperature ranges between -10&deg;C and 30&deg;C. This is because the temperature of a country is not directly related to the factors we considered. The location of the country on Earth’s surface contributes a lot to its temperature (Countries closer to the equator are hotter than countries far from the equator).  
+Since the absolute value of the temperature cannot be used because of the above mentioned reason, we calculated the temperature deviation for each country and checked if we can consider that to build a model.  
+  
+  
+```{r EDA_TempVarPlot, fig.align='center'}
+plot4 <- ggplot(data = FNDDS, mapping = aes(x = GDP, y = AN_Temp, color = Country))
+plot4 + geom_point() + scale_x_log10() + labs(x = "GDP (log 10 scale)", y = "Temperature Deviation from Mean", title = "GDP (in USD) vs Temperature Change")
+```  
+
+This resulted in a similar issue as before but in the opposite way. The input values for a temperature change of 0.5 could have varying inputs of GDP, CO2 Emissions and Population. Also, looking at the distribution of data, we checked for the correlation between these various factors and the temperature for each country. As an example, let's consider India.  
+
+```{r EDA_IndPlot, fig.height=3, fig.width=8, fig.align='center'}
+source('Scripts/RS_India_Plots.R')
+```  
+  
+We generated similar graphs for all the countries and found that there is a strong correlation between the considered factors. So, we generated the correlation matrix of the factors for each country as follows:
+  
+  
+```{r EDA_Corr, fig.align='center', fig.height=7, fig.width=7}
+source('Scripts/RS_EDA_Corrplot.R')
+```
+  
+From the above, we see a very strong correlation between these factors for some countries and negative correlation between some factors for few countries(eg: UK, Germany). Given that we are dealing with real numbers and not class labels, we used a regression model to predict the absolute temperature given the features.  
+  
+### $\color{brown}{\text{Analysis}}$  
+We used the simple linear model (available in stats package) on data belonging to India to start with. We split the entire data of each country into training and test sets with a split percentage of 80-20. 
+
+```{r LM, fig.align='center'}
+source('Scripts/RS_LinearRegressionModel.R')
+```
+
+The model has satisfactory p-value. However, the p-value for individual predictors is not good enough as all the values are greater than 0.05. The same linear model, when trained on data for countries China, Brazil, France, Italy and Japan had pvalues<.05, indicating the coefficients were statistically significant.  
+So, we used ridge regression as well only to find out that the p-values are pretty much similar and are not good enough to be considered as a predictor. Given that these two models do not have cross-validation, we then tried the *train* method available in *caret* package to increase the consistency of the model. There wasn't much improvement in the Multiple R-squared value. So, we went back to the linear model and used the *predict* function to do a prediction on the temperature.   
+
+```{r Predict}
+source('Scripts/RS_Predict.R')
+```
+  
+  The multiple R-squared value we found on this is 0.49. We verified the model's consistency by considering cross-validation as well. Since there are 50 data points for each country 4-fold Cross validation is performed using *crossval* from *bootstrap* package. 
+```{r CrossValidation}
+# define functions 
+theta.fit <- function(x,y){lsfit(x,y)}
+theta.predict <- function(fit,x){cbind(1,x)%*%fit$coef} 
+x <- as.matrix(data.sel[-c(1)]) # matrix of predictors
+y <- as.matrix(data.sel[c("AN_Temp")]) # vector of predicted values
+results <- crossval(x,y,theta.fit,theta.predict,ngroup=4)
+cor(y, results$cv.fit)**2 # cross-validated R2
+```
+  From the above results, we found that the multiple R-square value is deteriorating. In order to increase this value, we discarded the three most extreme observations using Cook's distance as the parameter. Even after doing this, there wasn't any significant change in the observed multiple R-squared value. 
+  
+  
+  So, we looked at time series analysis of the temperature data to check if it yields better results.  
+  
+### $\color{brown}{\text{Time Series Analysis}}$  
+The [raw temperature dataset](https://www.kaggle.com/berkeleyearth/climate-change-earth-surface-temperature-data) contains the measured absolute average temperature of countries from 1960 to 2012 recorded every month i.e., frequency of 12 per year.  We only considered the data for India and converted the dataset to Timeseries format. When we plotted temperature with respect to month, the months between May and June peaks out suggesting it could be summer. Plot suggests Summers and winters are getting hotter in recent years than before. 
+```{r echo=FALSE, eval=TRUE}
+data <- read.csv("Data sets/GlobalLandTemperaturesByCountry.csv") # considering the base dataset
+Ind = data %>% filter(data$Country == "India") # filtering the dataset for values for India
+Ind = Ind %>% filter(format(Ind[,1],format="%Y")>=1960) # Considering data only from 1960 onwards
+Ind = Ind %>% filter(format(Ind[,1],format="%Y")<2013) # Consider only data that is used in our final dataset
+#Dropping some columns and formatting some columns to be able to use in time series
+Ind$AverageTemperatureUncertainty = NULL
+Ind$Country = NULL
+Ind$dt = as.Date(Ind$dt)
+Ind1 = ts(Ind$AverageTemperature, frequency = 12, start = c(1960, 1))
+```
+```{r fig.align='center'}
+ggseasonplot(Ind1)
+```
+
+The decomposition of the time series shows the seasonality in data. A slight trend is observed, but not a significant one. 
+```{r decompose}
+pp = decompose(Ind1)
+plot(pp)
+```
+
+
+The Augmented Dickey–Fuller Test (ADF test) gives the pvalue<0.05, suggesting we reject the hypothesis that the series is Non-stationary. 
+```{r adftest}
+adf.test(Ind1,alternative = "stationary")
+```
+
+
+The ndiffs(timeseries) estimate is 0 suggesting there is no need for differentiating. When the model was built using ARIMA, it produced a model with RMSE(Mean Residual Squared Error) of 0.6848071 and MAE 0.5245996. The temperature has been predicted for next 3 years using the ARIMA model.
+```{r arima}
+fit = auto.arima(Ind1,seasonal = TRUE)
+summary(fit)
+fore = forecast(fit,n=36)
+autoplot(fore)
+```
+
+
+
+### $\color{brown}{\text{Relation between Deaths and Temperature}}$  
+One of our initial questions was to see if there is an effect of natural calamities that occurred in the country on the temperature of that country. We used the number of deaths (obtained from the Disasters Data set) as a measure of the natural calamity. While there are numerous events of calamities and deaths, we considered only those events where the number of deaths was over 50000. We considered 50000 deaths to be a large enough number to make an impact on the temperature  
+
+```{r Deaths}
+DeathDs = select(FNDDS, "Year", "CountryName", "Population", "GDP", "Emissions", "TotalDeaths")
+DeathDs = DeathDs %>% filter(DeathDs$TotalDeaths>50000)
+DeathDs
+```
+  
+  There are only four instances available in our dataset that met this criteria (as seen above). So, for each of these four instances, we looked at a subset of the data of that country from the year of incident occurring to the next four years (a total of five years in all) and checked if there is a dip in temperature in the consecutive years after the event occurrence.  
+```{r DeathvsTemp, fig.height=3, fig.width=8, fig.align='center'}
+source('Scripts/RS_DeathvsTemperature.R')
+```
+  
+We see from the above graphs that while the factors considered like GDP, CO2 Emissions and Populations are increasing overall in the consecutive years, there is a dip in the average temperature. However, these are just four incidents and hence cannot be considered concrete evidence to claim/correlate that natural calamities resulting in huge personal loss cause a dip in the average temperature.  
+
+### $\color{brown}{\text{Final Analysis}}$  
+1.  We used linear model to predict the temperature based on GDP, CO2 emissions and population and found that the p-values of the predictors are statistically insignificant for few countries (eg., India) and for countries China and Brazil, the p-values were significant. We used cook's distance to remove influential points and still there was no improvement in multiple R-square value.  
+2.	We used time series analysis and found out that there are trends and seasons in the temperature. One observation that can be made from time series analysis is that the measured seasonal temperature is increasing.  
+3.  The ARIMA time series model built using temperature alone had RMSE of 0.6848071 and the linear model built using the predictors had RMSE of 0.23.  
+4.  To check whether the severity of a natural calamity had an impact on the temperature, we do not have sufficient data points.   
+5.  We merged different datasets together and built models on top of this and the models perform poorly. So, we think that this is not a preferred method of analyzing. Maybe adding a few more predictors to the model helps.  
+
+  
+### $\color{brown}{\text{Discarded Work}}$  
+1.  [This blog](https://discuss.okfn.org/t/climate-change-datasets/1593) mentions to consider few other datasets like CO2 emission and Population while dealing with climate change. We tried to include the [total automobiles sales](http://www.oica.net/category/sales-statistics/) at country level. Due to lack of sufficient data for total number of automobiles, we dropped the dataset at preprocessing stage since it had data beginning from 2005. It had 55 years of data lacking for all the countries.  
+2.  **Temperature anomaly confusion** - While dealing with temperature, many of the websites talk about temperature anomaly and recommend to use this as a measure of temperature rather than using the absolute temperature. Refer to [this](http://ete.cet.edu/gcc/?/globaltemp_anomalies/) for a detailed understanding of what  temperature anomaly means and why this is used. We spent a lot of time discussing on this and checking how we can use the temperature anomaly with regards to our questions. We searched on methods to calculate the temperature anomaly and tried to compute the anomaly ourselves. There were few sources available from where we could get the temperature anomaly of the entire world and it was not what we were looking for. After realizing that anomaly should be used when dealing with just temperature only (not considering other factors), we got to using the absolute numbers of the temperature for each country and ran our models on them.  
+
+
+### $\color{brown}{\text{Shiny App & Website}}$  
+We built a shiny app to show how GDP, CO2 Emisssions, Population and Average Temperature have been changing for the selected country through the years  and their correlations, along with the Exploratory data analysis and the data points that we have used to generate the plots. The app can be accessed by following this [link](https://whocares.shinyapps.io/Scripts/)  
+We also created a website with all the details in this report. The website can be found [here](https://who-cares.gitlab.io/rblog/)  
+  
+----- END OF REPORT -----  
+  
+  
+```{r SessionInfo}
+sessionInfo()
+```
