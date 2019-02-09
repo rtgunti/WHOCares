@@ -1,7 +1,5 @@
 IDENTIFICATION OF PREDICTORS FOR CLIMATE CHANGE EFFECTS
 
-Final Submission for the seminar: Data science with R
-
 The final project notebook is named "WHOCaresReport.nb.html" and is available in this folder.
 
 The datasets are located in the folder "Data sets".
